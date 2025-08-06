@@ -42,10 +42,10 @@ function App() {
       <BrowserRouter>
         <Header />
         <Routes>
-          <Route path="/" element={<ProblemList />} />
+          <Route path="/" element={<Dashboard />} />
           <Route path="/problems" element={<ProblemList />} />
           <Route path="/problems/:id" element={<ProblemDetail />} />
-          <Route path="/contest" element={<Contest />} />
+          <Route path="/contest" element={<ContestPage />} />
           <Route path="/discuss" element={<Discuss />} />
           <Route path="/interview" element={<Interview />} />
           <Route path="/store" element={<Store />} />
