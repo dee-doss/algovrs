@@ -39,21 +39,23 @@ const Store = () => (
 
 function App() {
   return (
-    <div className="App bg-gray-50 min-h-screen">
-      <BrowserRouter>
-        <Header />
-        <Routes>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/problems" element={<ProblemList />} />
-          <Route path="/problems/:id" element={<ProblemDetail />} />
-          <Route path="/contest" element={<ContestPage />} />
-          <Route path="/discuss" element={<Discuss />} />
-          <Route path="/interview" element={<Interview />} />
-          <Route path="/store" element={<Store />} />
-        </Routes>
-        <Toaster />
-      </BrowserRouter>
-    </div>
+    <AuthProvider>
+      <div className="App bg-gray-50 min-h-screen">
+        <BrowserRouter>
+          <Header />
+          <Routes>
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/problems" element={<ProblemList />} />
+            <Route path="/problems/:id" element={<ProblemDetail />} />
+            <Route path="/contest" element={<ContestPage />} />
+            <Route path="/discuss" element={<Discuss />} />
+            <Route path="/interview" element={<Interview />} />
+            <Route path="/store" element={<Store />} />
+          </Routes>
+          <Toaster />
+        </BrowserRouter>
+      </div>
+    </AuthProvider>
   );
 }
 
