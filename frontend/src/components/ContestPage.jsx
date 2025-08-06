@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
@@ -10,63 +10,81 @@ import {
   Calendar, 
   Play,
   Medal,
-  Timer
+  Timer,
+  Loader2
 } from 'lucide-react';
+import { contestsAPI } from '../services/api';
+import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../hooks/use-toast';
 
 const ContestPage = () => {
+  const { isAuthenticated } = useAuth();
+  const { toast } = useToast();
   const [activeTab, setActiveTab] = useState('upcoming');
+  const [contests, setContests] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const upcomingContests = [
-    {
-      id: 1,
-      title: 'Weekly Contest 378',
-      startTime: '2025-01-28T10:30:00Z',
-      duration: '1h 30m',
-      participants: 25678,
-      prizes: ['$500', '$300', '$200'],
-      difficulty: 'Medium',
-      status: 'upcoming'
-    },
-    {
-      id: 2,
-      title: 'Biweekly Contest 119',
-      startTime: '2025-01-30T14:30:00Z',
-      duration: '1h 30m',
-      participants: 18452,
-      prizes: ['$800', '$500', '$300'],
-      difficulty: 'Hard',
-      status: 'upcoming'
-    }
-  ];
+  useEffect(() => {
+    fetchContests();
+  }, []);
 
-  const pastContests = [
-    {
-      id: 3,
-      title: 'Weekly Contest 377',
-      startTime: '2025-01-21T10:30:00Z',
-      duration: '1h 30m',
-      participants: 28934,
-      myRank: 1247,
-      totalProblems: 4,
-      solvedProblems: 2,
-      status: 'completed'
-    },
-    {
-      id: 4,
-      title: 'Biweekly Contest 118',
-      startTime: '2025-01-16T14:30:00Z',
-      duration: '1h 30m',
-      participants: 22156,
-      myRank: 892,
-      totalProblems: 4,
-      solvedProblems: 3,
-      status: 'completed'
+  const fetchContests = async () => {
+    try {
+      setLoading(true);
+      const response = await contestsAPI.getContests();
+      setContests(response.data);
+    } catch (error) {
+      console.error('Failed to fetch contests:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load contests",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
     }
-  ];
+  };
+
+  const handleRegister = async (contestId) => {
+    if (!isAuthenticated) {
+      toast({
+        title: "Authentication Required",
+        description: "Please sign in to register for contests",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      await contestsAPI.registerForContest(contestId);
+      toast({
+        title: "Registration Successful",
+        description: "You have been registered for the contest!",
+      });
+    } catch (error) {
+      console.error('Failed to register for contest:', error);
+      toast({
+        title: "Registration Failed",
+        description: error.response?.data?.detail || "Failed to register for contest",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const upcomingContests = contests.filter(c => c.status === 'upcoming');
+  const pastContests = contests.filter(c => c.status === 'completed');
 
   const formatDateTime = (dateString) => {
     const date = new Date(dateString);
     return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+
+  const getDurationText = (minutes) => {
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    if (hours === 0) return `${mins}m`;
+    if (mins === 0) return `${hours}h`;
+    return `${hours}h ${mins}m`;
   };
 
   const getRankColor = (rank) => {
@@ -75,6 +93,19 @@ const ContestPage = () => {
     if (rank <= 1000) return 'text-blue-600 bg-blue-100';
     return 'text-gray-600 bg-gray-100';
   };
+
+  if (loading) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <Loader2 className="mx-auto h-8 w-8 animate-spin text-orange-500" />
+            <p className="mt-2 text-gray-600">Loading contests...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -138,135 +169,163 @@ const ContestPage = () => {
       {/* Contest Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="grid w-full grid-cols-2 mb-6">
-          <TabsTrigger value="upcoming">Upcoming Contests</TabsTrigger>
-          <TabsTrigger value="past">Past Contests</TabsTrigger>
+          <TabsTrigger value="upcoming">Upcoming Contests ({upcomingContests.length})</TabsTrigger>
+          <TabsTrigger value="past">Past Contests ({pastContests.length})</TabsTrigger>
         </TabsList>
 
         <TabsContent value="upcoming" className="space-y-6">
-          {upcomingContests.map((contest) => (
-            <Card key={contest.id} className="hover:shadow-lg transition-shadow duration-200">
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-xl">{contest.title}</CardTitle>
-                  <Badge variant="outline" className="text-blue-600 border-blue-300">
-                    Upcoming
-                  </Badge>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                  <div className="flex items-center space-x-2">
-                    <Calendar className="h-4 w-4 text-gray-500" />
-                    <div>
-                      <p className="text-sm font-medium">Start Time</p>
-                      <p className="text-sm text-gray-600">{formatDateTime(contest.startTime)}</p>
+          {upcomingContests.length > 0 ? (
+            upcomingContests.map((contest) => (
+              <Card key={contest.id} className="hover:shadow-lg transition-shadow duration-200">
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-xl">{contest.title}</CardTitle>
+                    <Badge variant="outline" className="text-blue-600 border-blue-300">
+                      Upcoming
+                    </Badge>
+                  </div>
+                  {contest.description && (
+                    <p className="text-gray-600 text-sm">{contest.description}</p>
+                  )}
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="flex items-center space-x-2">
+                      <Calendar className="h-4 w-4 text-gray-500" />
+                      <div>
+                        <p className="text-sm font-medium">Start Time</p>
+                        <p className="text-sm text-gray-600">{formatDateTime(contest.start_time)}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center space-x-2">
+                      <Clock className="h-4 w-4 text-gray-500" />
+                      <div>
+                        <p className="text-sm font-medium">Duration</p>
+                        <p className="text-sm text-gray-600">{getDurationText(contest.duration_minutes)}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center space-x-2">
+                      <Users className="h-4 w-4 text-gray-500" />
+                      <div>
+                        <p className="text-sm font-medium">Registered</p>
+                        <p className="text-sm text-gray-600">{contest.participants_count.toLocaleString()}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center space-x-2">
+                      <Trophy className="h-4 w-4 text-gray-500" />
+                      <div>
+                        <p className="text-sm font-medium">Prizes</p>
+                        <p className="text-sm text-gray-600">
+                          {contest.prizes.length > 0 ? contest.prizes.slice(0, 2).join(', ') : 'None'}
+                        </p>
+                      </div>
                     </div>
                   </div>
 
-                  <div className="flex items-center space-x-2">
-                    <Clock className="h-4 w-4 text-gray-500" />
-                    <div>
-                      <p className="text-sm font-medium">Duration</p>
-                      <p className="text-sm text-gray-600">{contest.duration}</p>
-                    </div>
+                  <div className="flex items-center justify-between mt-6">
+                    <Badge className={
+                      contest.difficulty === 'Easy' ? 'text-green-600 bg-green-100' :
+                      contest.difficulty === 'Medium' ? 'text-yellow-600 bg-yellow-100' :
+                      'text-red-600 bg-red-100'
+                    }>
+                      {contest.difficulty}
+                    </Badge>
+
+                    <Button 
+                      className="bg-blue-600 hover:bg-blue-700"
+                      onClick={() => handleRegister(contest.id)}
+                      disabled={!isAuthenticated}
+                    >
+                      <Play className="h-4 w-4 mr-2" />
+                      {isAuthenticated ? 'Register' : 'Sign in to Register'}
+                    </Button>
                   </div>
-
-                  <div className="flex items-center space-x-2">
-                    <Users className="h-4 w-4 text-gray-500" />
-                    <div>
-                      <p className="text-sm font-medium">Registered</p>
-                      <p className="text-sm text-gray-600">{contest.participants.toLocaleString()}</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center space-x-2">
-                    <Trophy className="h-4 w-4 text-gray-500" />
-                    <div>
-                      <p className="text-sm font-medium">Prizes</p>
-                      <p className="text-sm text-gray-600">{contest.prizes.join(', ')}</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between mt-6">
-                  <Badge className={
-                    contest.difficulty === 'Easy' ? 'text-green-600 bg-green-100' :
-                    contest.difficulty === 'Medium' ? 'text-yellow-600 bg-yellow-100' :
-                    'text-red-600 bg-red-100'
-                  }>
-                    {contest.difficulty}
-                  </Badge>
-
-                  <Button className="bg-blue-600 hover:bg-blue-700">
-                    <Play className="h-4 w-4 mr-2" />
-                    Register
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                </CardContent>
+              </Card>
+            ))
+          ) : (
+            <div className="text-center py-12">
+              <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <p className="text-gray-600 mb-2">No upcoming contests</p>
+              <p className="text-sm text-gray-500">Check back later for new contests!</p>
+            </div>
+          )}
         </TabsContent>
 
         <TabsContent value="past" className="space-y-6">
-          {pastContests.map((contest) => (
-            <Card key={contest.id} className="hover:shadow-lg transition-shadow duration-200">
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-xl">{contest.title}</CardTitle>
-                  <Badge variant="outline" className="text-gray-600 border-gray-300">
-                    Completed
-                  </Badge>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                  <div className="flex items-center space-x-2">
-                    <Calendar className="h-4 w-4 text-gray-500" />
-                    <div>
-                      <p className="text-sm font-medium">Date</p>
-                      <p className="text-sm text-gray-600">{formatDateTime(contest.startTime)}</p>
+          {pastContests.length > 0 ? (
+            pastContests.map((contest) => (
+              <Card key={contest.id} className="hover:shadow-lg transition-shadow duration-200">
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-xl">{contest.title}</CardTitle>
+                    <Badge variant="outline" className="text-gray-600 border-gray-300">
+                      Completed
+                    </Badge>
+                  </div>
+                  {contest.description && (
+                    <p className="text-gray-600 text-sm">{contest.description}</p>
+                  )}
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="flex items-center space-x-2">
+                      <Calendar className="h-4 w-4 text-gray-500" />
+                      <div>
+                        <p className="text-sm font-medium">Date</p>
+                        <p className="text-sm text-gray-600">{formatDateTime(contest.start_time)}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center space-x-2">
+                      <Trophy className="h-4 w-4 text-gray-500" />
+                      <div>
+                        <p className="text-sm font-medium">My Rank</p>
+                        <Badge className="text-xs">
+                          #1247
+                        </Badge>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center space-x-2">
+                      <Users className="h-4 w-4 text-gray-500" />
+                      <div>
+                        <p className="text-sm font-medium">Total Participants</p>
+                        <p className="text-sm text-gray-600">{contest.participants_count.toLocaleString()}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center space-x-2">
+                      <Medal className="h-4 w-4 text-gray-500" />
+                      <div>
+                        <p className="text-sm font-medium">Problems Solved</p>
+                        <p className="text-sm text-gray-600">2/4</p>
+                      </div>
                     </div>
                   </div>
 
-                  <div className="flex items-center space-x-2">
-                    <Trophy className="h-4 w-4 text-gray-500" />
-                    <div>
-                      <p className="text-sm font-medium">My Rank</p>
-                      <Badge className={getRankColor(contest.myRank)}>
-                        #{contest.myRank}
-                      </Badge>
+                  <div className="flex items-center justify-between mt-6">
+                    <div className="text-sm text-gray-500">
+                      Performance: 50%
                     </div>
-                  </div>
 
-                  <div className="flex items-center space-x-2">
-                    <Users className="h-4 w-4 text-gray-500" />
-                    <div>
-                      <p className="text-sm font-medium">Total Participants</p>
-                      <p className="text-sm text-gray-600">{contest.participants.toLocaleString()}</p>
-                    </div>
+                    <Button variant="outline">
+                      View Details
+                    </Button>
                   </div>
-
-                  <div className="flex items-center space-x-2">
-                    <Medal className="h-4 w-4 text-gray-500" />
-                    <div>
-                      <p className="text-sm font-medium">Problems Solved</p>
-                      <p className="text-sm text-gray-600">{contest.solvedProblems}/{contest.totalProblems}</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between mt-6">
-                  <div className="text-sm text-gray-500">
-                    Performance: {Math.round((contest.solvedProblems / contest.totalProblems) * 100)}%
-                  </div>
-
-                  <Button variant="outline">
-                    View Details
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                </CardContent>
+              </Card>
+            ))
+          ) : (
+            <div className="text-center py-12">
+              <Trophy className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <p className="text-gray-600 mb-2">No past contests</p>
+              <p className="text-sm text-gray-500">Participate in contests to see your history here!</p>
+            </div>
+          )}
         </TabsContent>
       </Tabs>
     </div>
