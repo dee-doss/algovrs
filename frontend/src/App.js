@@ -2,20 +2,13 @@ import React from "react";
 import "./App.css";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Header from "./components/Header";
+import Dashboard from "./components/Dashboard";
 import ProblemList from "./components/ProblemList";
 import ProblemDetail from "./components/ProblemDetail";
+import ContestPage from "./components/ContestPage";
 import { Toaster } from "./components/ui/toaster";
 
 // Placeholder components for other routes
-const Contest = () => (
-  <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-    <h1 className="text-3xl font-bold text-gray-900 mb-6">Contests</h1>
-    <div className="bg-white rounded-lg border border-gray-200 p-8 text-center">
-      <p className="text-gray-600">Contest feature coming soon!</p>
-    </div>
-  </div>
-);
-
 const Discuss = () => (
   <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
     <h1 className="text-3xl font-bold text-gray-900 mb-6">Discuss</h1>
