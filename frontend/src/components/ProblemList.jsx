@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
@@ -16,18 +16,40 @@ import {
   Filter, 
   ArrowUpDown,
   Heart,
-  MessageSquare
+  MessageSquare,
+  Loader2
 } from 'lucide-react';
-import { mockProblems } from '../mock/problems';
+import { problemsAPI } from '../services/api';
+import { useAuth } from '../contexts/AuthContext';
 
 const ProblemList = () => {
-  const [problems, setProblems] = useState(mockProblems);
+  const { isAuthenticated } = useAuth();
+  const [problems, setProblems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [filters, setFilters] = useState({
     difficulty: 'all',
     status: 'all',
     category: 'all'
   });
   const [sortBy, setSortBy] = useState('id');
+
+  useEffect(() => {
+    fetchProblems();
+  }, [isAuthenticated]);
+
+  const fetchProblems = async () => {
+    try {
+      setLoading(true);
+      const response = await problemsAPI.getProblems();
+      setProblems(response.data);
+    } catch (error) {
+      console.error('Failed to fetch problems:', error);
+      setError('Failed to load problems');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const getDifficultyColor = (difficulty) => {
     switch (difficulty) {
@@ -55,12 +77,46 @@ const ProblemList = () => {
     return true;
   });
 
+  if (loading) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <Loader2 className="mx-auto h-8 w-8 animate-spin text-orange-500" />
+            <p className="mt-2 text-gray-600">Loading problems...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Error Loading Problems</h2>
+          <p className="text-gray-600 mb-4">{error}</p>
+          <Button onClick={fetchProblems} className="bg-orange-600 hover:bg-orange-700">
+            Try Again
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">Problems</h1>
         <p className="text-gray-600">Solve problems to improve your coding skills</p>
+        {!isAuthenticated && (
+          <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <p className="text-blue-800">
+              <strong>Sign in</strong> to track your progress and see which problems you've solved!
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Filters */}
@@ -84,17 +140,19 @@ const ProblemList = () => {
               </SelectContent>
             </Select>
 
-            <Select value={filters.status} onValueChange={(value) => setFilters({...filters, status: value})}>
-              <SelectTrigger className="w-32">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All</SelectItem>
-                <SelectItem value="solved">Solved</SelectItem>
-                <SelectItem value="attempted">Attempted</SelectItem>
-                <SelectItem value="todo">Todo</SelectItem>
-              </SelectContent>
-            </Select>
+            {isAuthenticated && (
+              <Select value={filters.status} onValueChange={(value) => setFilters({...filters, status: value})}>
+                <SelectTrigger className="w-32">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All</SelectItem>
+                  <SelectItem value="solved">Solved</SelectItem>
+                  <SelectItem value="attempted">Attempted</SelectItem>
+                  <SelectItem value="todo">Todo</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
 
             <Select value={filters.category} onValueChange={(value) => setFilters({...filters, category: value})}>
               <SelectTrigger className="w-36">
@@ -121,7 +179,7 @@ const ProblemList = () => {
                 <SelectItem value="id">Default</SelectItem>
                 <SelectItem value="title">Title</SelectItem>
                 <SelectItem value="difficulty">Difficulty</SelectItem>
-                <SelectItem value="acceptance">Acceptance</SelectItem>
+                <SelectItem value="acceptance_rate">Acceptance</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -134,9 +192,11 @@ const ProblemList = () => {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
+                {isAuthenticated && (
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Status
+                  </th>
+                )}
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Title
                 </th>
@@ -152,23 +212,25 @@ const ProblemList = () => {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {filteredProblems.map((problem) => (
+              {filteredProblems.map((problem, index) => (
                 <tr key={problem.id} className="hover:bg-gray-50 transition-colors duration-150">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    {getStatusIcon(problem.solved, problem.attempted)}
-                  </td>
+                  {isAuthenticated && (
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {getStatusIcon(problem.solved, problem.attempted)}
+                    </td>
+                  )}
                   <td className="px-6 py-4">
                     <div className="flex items-center justify-between">
                       <Link 
                         to={`/problems/${problem.id}`}
                         className="text-blue-600 hover:text-blue-800 font-medium transition-colors duration-150"
                       >
-                        {problem.id}. {problem.title}
+                        {index + 1}. {problem.title}
                       </Link>
                       <div className="flex items-center space-x-4 ml-4">
                         <div className="flex items-center space-x-1 text-gray-500">
                           <Heart className="h-4 w-4" />
-                          <span className="text-sm">{problem.likes}</span>
+                          <span className="text-sm">{problem.likes || 0}</span>
                         </div>
                         <div className="flex items-center space-x-1 text-gray-500">
                           <MessageSquare className="h-4 w-4" />
@@ -177,15 +239,15 @@ const ProblemList = () => {
                       </div>
                     </div>
                     <div className="flex flex-wrap gap-1 mt-2">
-                      {problem.tags.map((tag, index) => (
-                        <Badge key={index} variant="secondary" className="text-xs">
+                      {problem.tags.map((tag, tagIndex) => (
+                        <Badge key={tagIndex} variant="secondary" className="text-xs">
                           {tag}
                         </Badge>
                       ))}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {problem.acceptance}
+                    {problem.acceptance_rate ? `${problem.acceptance_rate.toFixed(1)}%` : 'N/A'}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <Badge className={getDifficultyColor(problem.difficulty)}>
